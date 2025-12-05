@@ -1,22 +1,24 @@
 from enum import Enum
 
-class TextNodeType(Enum):
-    PLAIN_TEXT = 1
-    BOLD_TEXT = 2
-    ITALIC_TEXT = 3
-    UNDERLINED_TEXT = 4
-    STRIKETHROUGH_TEXT = 5
-    CODE_TEXT = 6
-    LINK_TEXT = 7
-    QUOTE_TEXT = 8
-    HEADING_TEXT = 9
-    LIST_ITEM_TEXT = 10
-    BLOCKQUOTE_TEXT = 11
-    HIGHLIGHTED_TEXT = 12
+class TextType(Enum):
+    TEXT = 0
+    PLAIN = 1
+    BOLD = 2
+    ITALIC = 3
+    UNDERLINED = 4
+    STRIKETHROUGH = 5
+    CODE = 6
+    LINK = 7
+    IMAGE = 8
+    QUOTE = 9
+    HEADING = 10
+    LIST_ITEM = 11
+    BLOCKQUOTE = 12
+    HIGHLIGHTED = 13
     
     
 class TextNode:
-    def __init__(self, text: str, node_type: TextNodeType, URL: str = None):
+    def __init__(self, text: str, node_type: TextType, URL: str = None):
         self.text = text
         self.node_type = node_type
         self.URL = URL
