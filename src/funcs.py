@@ -86,7 +86,7 @@ def _copy_recursive(src, dest):
             _copy_recursive(src_path, dest_path)
 
 
-def generate_page(from_path, template_path, dest_path):
+def generate_page(from_path, template_path, dest_path, basepath="/"):
     """
     Generate an HTML page from a markdown file using a template.
     
@@ -97,6 +97,7 @@ def generate_page(from_path, template_path, dest_path):
         from_path (str): Path to the markdown file
         template_path (str): Path to the HTML template file
         dest_path (str): Path where the generated HTML will be written
+        basepath (str): Base path for absolute URLs (default: "/")
     """
     print(f"Generating page from {from_path} to {dest_path} using {template_path}")
     
@@ -119,6 +120,10 @@ def generate_page(from_path, template_path, dest_path):
     full_html = template_content.replace("{{ Title }}", title)
     full_html = full_html.replace("{{ Content }}", html_content)
     
+    # Replace absolute URLs with basepath
+    full_html = full_html.replace('href="/', f'href="{basepath}')
+    full_html = full_html.replace('src="/', f'src="{basepath}')
+    
     # Create destination directory if it doesn't exist
     dest_dir = os.path.dirname(dest_path)
     if dest_dir and not os.path.exists(dest_dir):
@@ -132,7 +137,7 @@ def generate_page(from_path, template_path, dest_path):
     print(f"Page generated successfully: {dest_path}")
 
 
-def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
+def generate_pages_recursive(dir_path_content, template_path, dest_dir_path, basepath="/"):
     """
     Recursively generate HTML pages from all markdown files in a directory.
     
@@ -143,6 +148,7 @@ def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
         dir_path_content (str): Path to the content directory containing markdown files
         template_path (str): Path to the HTML template file
         dest_dir_path (str): Path to the destination directory for generated HTML files
+        basepath (str): Base path for absolute URLs (default: "/")
     """
     # List all items in the content directory
     if not os.path.exists(dir_path_content):
@@ -162,14 +168,14 @@ def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
                 dest_path = os.path.join(dest_dir_path, html_filename)
                 
                 # Generate the HTML page
-                generate_page(src_path, template_path, dest_path)
+                generate_page(src_path, template_path, dest_path, basepath)
         
         elif os.path.isdir(src_path):
             # Create corresponding directory in destination
             new_dest_dir = os.path.join(dest_dir_path, item)
             
             # Recursively process subdirectory
-            generate_pages_recursive(src_path, template_path, new_dest_dir)
+            generate_pages_recursive(src_path, template_path, new_dest_dir, basepath)
 
 
 class BlockType(Enum):
