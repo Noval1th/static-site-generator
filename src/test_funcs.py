@@ -5,7 +5,7 @@ import os
 sys.path.insert(0, os.path.dirname(__file__))
 
 from textnode import TextNode, TextType
-from funcs import split_nodes_delimiter, extract_markdown_images, extract_markdown_links, split_nodes_image, split_nodes_link, text_to_textnodes, markdown_to_blocks, BlockType, block_to_block_type, markdown_to_html_node
+from funcs import split_nodes_delimiter, extract_markdown_images, extract_markdown_links, split_nodes_image, split_nodes_link, text_to_textnodes, markdown_to_blocks, BlockType, block_to_block_type, markdown_to_html_node, extract_title
 
 
 class TestSplitNodesDelimiter(unittest.TestCase):
@@ -1345,6 +1345,150 @@ Final paragraph with a [link](https://boot.dev) and an ![image](img.png)."""
         self.assertIn("<pre><code>", html)
         self.assertIn('<a href="https://boot.dev">link</a>', html)
         self.assertIn('<img src="img.png" alt="image">', html)
+
+
+class TestExtractTitle(unittest.TestCase):
+    """Test cases for extract_title function"""
+    
+    def test_simple_title(self):
+        """Test extracting a simple h1 title"""
+        md = "# Hello"
+        title = extract_title(md)
+        self.assertEqual(title, "Hello")
+    
+    def test_title_with_content(self):
+        """Test extracting title from document with content"""
+        md = """# My Title
+
+This is some content.
+
+## Subtitle"""
+        title = extract_title(md)
+        self.assertEqual(title, "My Title")
+    
+    def test_title_with_extra_whitespace(self):
+        """Test that extra whitespace is stripped"""
+        md = "#   Spaced Title   "
+        title = extract_title(md)
+        self.assertEqual(title, "Spaced Title")
+    
+    def test_title_with_leading_whitespace(self):
+        """Test title with leading whitespace before #"""
+        md = "   # Indented Title"
+        title = extract_title(md)
+        self.assertEqual(title, "Indented Title")
+    
+    def test_title_after_blank_lines(self):
+        """Test title that appears after blank lines"""
+        md = """
+
+# Title After Blanks
+
+Content here"""
+        title = extract_title(md)
+        self.assertEqual(title, "Title After Blanks")
+    
+    def test_title_with_formatting(self):
+        """Test title with inline markdown formatting"""
+        md = "# Title with **bold** and *italic*"
+        title = extract_title(md)
+        self.assertEqual(title, "Title with **bold** and *italic*")
+    
+    def test_ignores_h2(self):
+        """Test that h2 headers are ignored"""
+        md = """## Not H1
+
+# This is H1"""
+        title = extract_title(md)
+        self.assertEqual(title, "This is H1")
+    
+    def test_ignores_h3_and_higher(self):
+        """Test that h3+ headers are ignored"""
+        md = """### H3
+#### H4
+
+# Real Title"""
+        title = extract_title(md)
+        self.assertEqual(title, "Real Title")
+    
+    def test_first_h1_wins(self):
+        """Test that only the first h1 is returned"""
+        md = """# First Title
+
+Some content
+
+# Second Title"""
+        title = extract_title(md)
+        self.assertEqual(title, "First Title")
+    
+    def test_no_h1_raises_exception(self):
+        """Test that missing h1 raises an exception"""
+        md = """## Only H2
+
+This is content."""
+        with self.assertRaises(Exception) as context:
+            extract_title(md)
+        self.assertIn("No h1 header found", str(context.exception))
+    
+    def test_empty_markdown_raises_exception(self):
+        """Test that empty markdown raises an exception"""
+        md = ""
+        with self.assertRaises(Exception):
+            extract_title(md)
+    
+    def test_only_whitespace_raises_exception(self):
+        """Test that only whitespace raises an exception"""
+        md = "   \n\n   \n"
+        with self.assertRaises(Exception):
+            extract_title(md)
+    
+    def test_hash_without_space_raises_exception(self):
+        """Test that # without space is not recognized as h1"""
+        md = """#NoSpace
+
+## H2 here"""
+        with self.assertRaises(Exception):
+            extract_title(md)
+    
+    def test_title_with_special_characters(self):
+        """Test title with special characters"""
+        md = "# Title with $pecial Ch@rs & Symbols!"
+        title = extract_title(md)
+        self.assertEqual(title, "Title with $pecial Ch@rs & Symbols!")
+    
+    def test_title_with_numbers(self):
+        """Test title with numbers"""
+        md = "# Chapter 1: Introduction to Python 3.12"
+        title = extract_title(md)
+        self.assertEqual(title, "Chapter 1: Introduction to Python 3.12")
+    
+    def test_complex_document(self):
+        """Test extracting title from a complex document"""
+        md = """# Static Site Generator
+
+This is a **static site generator** written in Python.
+
+## Features
+
+- Markdown to HTML conversion
+- Recursive directory copying
+- Title extraction
+
+## Installation
+
+```bash
+pip install -r requirements.txt
+```
+
+### Usage
+
+Run the generator:
+
+```
+python src/main.py
+```"""
+        title = extract_title(md)
+        self.assertEqual(title, "Static Site Generator")
 
 
 if __name__ == "__main__":

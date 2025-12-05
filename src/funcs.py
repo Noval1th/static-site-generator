@@ -1,7 +1,175 @@
 from textnode import TextNode, TextType
-from htmlnode import HTMLNode, LeafNode, ParentNode
+from htmlnode import LeafNode, ParentNode
 import re
+import os
+import shutil
 from enum import Enum
+
+
+def text_node_to_html_node(text_node):
+    """
+    Convert a TextNode to an HTMLNode (LeafNode).
+    
+    Handles each TextType:
+    - TEXT: LeafNode with no tag
+    - BOLD: LeafNode with 'b' tag
+    - ITALIC: LeafNode with 'i' tag
+    - CODE: LeafNode with 'code' tag
+    - LINK: LeafNode with 'a' tag and href prop
+    - IMAGE: LeafNode with 'img' tag, empty value, src and alt props
+    
+    Raises ValueError for unsupported types.
+    """
+    if text_node.node_type == TextType.TEXT:
+        return LeafNode(None, text_node.text)
+    elif text_node.node_type == TextType.BOLD:
+        return LeafNode("b", text_node.text)
+    elif text_node.node_type == TextType.ITALIC:
+        return LeafNode("i", text_node.text)
+    elif text_node.node_type == TextType.CODE:
+        return LeafNode("code", text_node.text)
+    elif text_node.node_type == TextType.LINK:
+        return LeafNode("a", text_node.text, {"href": text_node.URL})
+    elif text_node.node_type == TextType.IMAGE:
+        return LeafNode("img", "", {"src": text_node.URL, "alt": text_node.text})
+    else:
+        raise ValueError(f"Unsupported TextType: {text_node.node_type}")
+
+
+def copy_directory_contents(src_dir, dest_dir):
+    """
+    Recursively copy all contents from source directory to destination directory.
+    
+    First deletes all contents of the destination directory to ensure a clean copy.
+    Then copies all files and subdirectories recursively.
+    
+    Args:
+        src_dir (str): Path to the source directory
+        dest_dir (str): Path to the destination directory
+    """
+    # Delete all contents of destination directory if it exists
+    if os.path.exists(dest_dir):
+        print(f"Clearing destination directory: {dest_dir}")
+        shutil.rmtree(dest_dir)
+    
+    # Create the destination directory
+    os.makedirs(dest_dir)
+    print(f"Created destination directory: {dest_dir}")
+    
+    # Recursively copy contents
+    _copy_recursive(src_dir, dest_dir)
+
+
+def _copy_recursive(src, dest):
+    """
+    Helper function to recursively copy directory contents.
+    
+    Args:
+        src (str): Source directory path
+        dest (str): Destination directory path
+    """
+    # List all items in the source directory
+    items = os.listdir(src)
+    
+    for item in items:
+        src_path = os.path.join(src, item)
+        dest_path = os.path.join(dest, item)
+        
+        if os.path.isfile(src_path):
+            # Copy file
+            shutil.copy2(src_path, dest_path)
+            print(f"Copied file: {src_path} -> {dest_path}")
+        elif os.path.isdir(src_path):
+            # Create destination directory and recurse
+            os.makedirs(dest_path)
+            print(f"Created directory: {dest_path}")
+            _copy_recursive(src_path, dest_path)
+
+
+def generate_page(from_path, template_path, dest_path):
+    """
+    Generate an HTML page from a markdown file using a template.
+    
+    Reads the markdown file, converts it to HTML, extracts the title,
+    and uses a template to create a complete HTML page.
+    
+    Args:
+        from_path (str): Path to the markdown file
+        template_path (str): Path to the HTML template file
+        dest_path (str): Path where the generated HTML will be written
+    """
+    print(f"Generating page from {from_path} to {dest_path} using {template_path}")
+    
+    # Read the markdown file
+    with open(from_path, 'r', encoding='utf-8') as f:
+        markdown_content = f.read()
+    
+    # Read the template file
+    with open(template_path, 'r', encoding='utf-8') as f:
+        template_content = f.read()
+    
+    # Convert markdown to HTML
+    html_node = markdown_to_html_node(markdown_content)
+    html_content = html_node.to_html()
+    
+    # Extract the title
+    title = extract_title(markdown_content)
+    
+    # Replace placeholders in template
+    full_html = template_content.replace("{{ Title }}", title)
+    full_html = full_html.replace("{{ Content }}", html_content)
+    
+    # Create destination directory if it doesn't exist
+    dest_dir = os.path.dirname(dest_path)
+    if dest_dir and not os.path.exists(dest_dir):
+        os.makedirs(dest_dir)
+        print(f"Created directory: {dest_dir}")
+    
+    # Write the generated HTML to the destination file
+    with open(dest_path, 'w', encoding='utf-8') as f:
+        f.write(full_html)
+    
+    print(f"Page generated successfully: {dest_path}")
+
+
+def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
+    """
+    Recursively generate HTML pages from all markdown files in a directory.
+    
+    Crawls the content directory and generates an HTML page for each markdown file,
+    maintaining the same directory structure in the destination.
+    
+    Args:
+        dir_path_content (str): Path to the content directory containing markdown files
+        template_path (str): Path to the HTML template file
+        dest_dir_path (str): Path to the destination directory for generated HTML files
+    """
+    # List all items in the content directory
+    if not os.path.exists(dir_path_content):
+        print(f"Warning: Content directory not found: {dir_path_content}")
+        return
+    
+    items = os.listdir(dir_path_content)
+    
+    for item in items:
+        src_path = os.path.join(dir_path_content, item)
+        
+        if os.path.isfile(src_path):
+            # Check if it's a markdown file
+            if item.endswith('.md'):
+                # Convert .md extension to .html
+                html_filename = item[:-3] + '.html'
+                dest_path = os.path.join(dest_dir_path, html_filename)
+                
+                # Generate the HTML page
+                generate_page(src_path, template_path, dest_path)
+        
+        elif os.path.isdir(src_path):
+            # Create corresponding directory in destination
+            new_dest_dir = os.path.join(dest_dir_path, item)
+            
+            # Recursively process subdirectory
+            generate_pages_recursive(src_path, template_path, new_dest_dir)
 
 
 class BlockType(Enum):
@@ -328,8 +496,6 @@ def text_to_children(text):
     Returns:
         list of HTMLNode: Child nodes representing the inline content
     """
-    from main import text_node_to_html_node
-    
     # Convert text to TextNodes (handles inline markdown)
     text_nodes = text_to_textnodes(text)
     
@@ -542,3 +708,39 @@ def markdown_to_html_node(markdown):
     
     # Wrap all blocks in a div
     return ParentNode("div", children)
+
+
+def extract_title(markdown):
+    """
+    Extract the h1 header from a markdown document.
+    
+    Searches for a line that starts with a single # (h1 header) and returns
+    the title text without the # and whitespace.
+    
+    Args:
+        markdown (str): The markdown document text
+        
+    Returns:
+        str: The h1 title text
+        
+    Raises:
+        Exception: If no h1 header is found in the markdown
+        
+    Example:
+        >>> extract_title("# Hello")
+        "Hello"
+        >>> extract_title("# My Title\\n\\nSome content")
+        "My Title"
+    """
+    lines = markdown.split("\n")
+    
+    for line in lines:
+        stripped = line.strip()
+        # Check if line starts with exactly one # followed by a space
+        if stripped.startswith("# ") and not stripped.startswith("## "):
+            # Extract the title text after "# "
+            title = stripped[2:].strip()
+            return title
+    
+    # No h1 header found
+    raise Exception("No h1 header found in markdown")
